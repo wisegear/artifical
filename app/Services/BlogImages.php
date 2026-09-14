@@ -11,14 +11,71 @@ use Intervention\Image\ImageManager;
 
 class BlogImages
 {
+    private const array SIZES = ['thumbnail' => 400, 'small' => 800, 'large' => 1600];
+
     public function store(UploadedFile $file): string
     {
-        $image = ImageManager::usingDriver(Driver::class)->decodePath($file->getPathname())->scaleDown(width: 1600, height: 1600);
-        $path = 'posts/'.Str::uuid().'.webp';
-        if (! Storage::disk('public')->put($path, (string) $image->encodeUsingFormat(Format::WEBP, quality: 82))) {
-            throw new \RuntimeException('The image could not be stored.');
+        $path = 'posts/'.Str::uuid().'.'.$file->extension();
+        try {
+            if (! Storage::disk('public')->putFileAs('posts', $file, basename($path))) {
+                throw new \RuntimeException('The original image could not be stored.');
+            }
+            $this->generateVariants($path);
+        } catch (\Throwable $exception) {
+            $this->delete($path);
+            throw $exception;
         }
 
         return $path;
+    }
+
+    public function generateVariants(string $path): void
+    {
+        $disk = Storage::disk('public');
+        $image = null;
+        $created = [];
+        try {
+            foreach (self::SIZES as $size => $width) {
+                $variant = $this->variantPath($path, $size);
+                if ($disk->exists($variant)) {
+                    continue;
+                }
+                $image ??= ImageManager::usingDriver(Driver::class)->decode($disk->get($path));
+                $resized = (clone $image)->scaleDown(width: $width, height: $width);
+                $created[] = $variant;
+                if (! $disk->put($variant, (string) $resized->encodeUsingFormat(Format::WEBP, quality: 65))) {
+                    throw new \RuntimeException('The resized image could not be stored.');
+                }
+            }
+        } catch (\Throwable $exception) {
+            $disk->delete($created);
+            throw $exception;
+        }
+    }
+
+    public function variantPath(string $path, string $size): string
+    {
+        if (! array_key_exists($size, self::SIZES)) {
+            throw new \InvalidArgumentException('Unknown image size.');
+        }
+
+        return dirname($path).'/'.$size.'-'.pathinfo($path, PATHINFO_FILENAME).'.webp';
+    }
+
+    public function url(string $path, string $size): string
+    {
+        $disk = Storage::disk('public');
+        $variant = $this->variantPath($path, $size);
+
+        return $disk->url($disk->exists($variant) ? $variant : $path);
+    }
+
+    public function delete(string $path): void
+    {
+        $paths = [$path];
+        foreach (array_keys(self::SIZES) as $size) {
+            $paths[] = $this->variantPath($path, $size);
+        }
+        Storage::disk('public')->delete($paths);
     }
 }

@@ -23,7 +23,6 @@ class PostSeeder extends Seeder
             'title' => 'A space for human curiosity',
             'post_date' => today(),
             'seo_summary' => 'Welcome to Artificially Curious: a journal of questions, experiments and perspectives on artificial intelligence.',
-            'category' => 'From the editor',
             'tags' => ['AI', 'Curiosity'],
             'body' => '<p>Every useful exploration starts with a question.</p><h2>What are you curious about?</h2><p>This is a space to look beyond headlines, try things out and share what we learn along the way.</p>',
             'is_published' => false,

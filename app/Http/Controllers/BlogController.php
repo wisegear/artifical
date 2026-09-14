@@ -10,19 +10,16 @@ class BlogController extends Controller
 {
     public function index(Request $request): View
     {
-        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'category' => ['nullable', 'string', 'max:80'], 'tag' => ['nullable', 'string', 'max:100']]);
+        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'tag' => ['nullable', 'string', 'max:100']]);
         $query = Post::published();
         if ($search = $filters['q'] ?? null) {
             $query->where(fn ($q) => $q->whereLike('title', '%'.$search.'%')->orWhereLike('seo_summary', '%'.$search.'%'));
-        }
-        if ($category = $filters['category'] ?? null) {
-            $query->where('category', $category);
         }
         if ($tag = $filters['tag'] ?? null) {
             $query->whereJsonContains('tags', $tag);
         }
 
-        return view('blog.index', ['posts' => $query->orderByDesc('post_date')->paginate(9)->withQueryString(), 'featured' => empty(array_filter($filters)) ? Post::published()->where('is_featured', true)->latest('post_date')->first() : null, 'categories' => Post::published()->distinct()->orderBy('category')->pluck('category')]);
+        return view('blog.index', ['posts' => $query->orderByDesc('post_date')->paginate(9)->withQueryString(), 'featured' => empty(array_filter($filters)) ? Post::published()->where('is_featured', true)->latest('post_date')->first() : null, 'popularTags' => Post::published()->pluck('tags')->flatten()->filter()->countBy()->sortDesc()->keys()->take(8)]);
     }
 
     public function show(Request $request, Post $post): View

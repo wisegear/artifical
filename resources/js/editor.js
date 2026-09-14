@@ -9,9 +9,9 @@ import 'tinymce/plugins/table';
 import 'tinymce/plugins/code';
 import 'tinymce/plugins/fullscreen';
 import 'tinymce/plugins/wordcount';
-import 'tinymce/skins/ui/oxide-dark/skin.min.css';
-import contentUi from 'tinymce/skins/ui/oxide-dark/content.min.css?inline';
-import contentCss from 'tinymce/skins/content/dark/content.min.css?inline';
+import 'tinymce/skins/ui/oxide/skin.min.css';
+import contentUi from 'tinymce/skins/ui/oxide/content.min.css?inline';
+import contentCss from 'tinymce/skins/content/default/content.min.css?inline';
 
 const element = document.querySelector('[data-editor]');
 const status = document.querySelector('#editor-status');

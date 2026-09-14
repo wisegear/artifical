@@ -8,7 +8,6 @@ use App\Models\Post;
 use App\Services\BlogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
@@ -47,7 +46,7 @@ class PostController extends Controller
 
     private function save(PostRequest $request, Post $post, BlogImages $images): RedirectResponse
     {
-        $data = $request->safe()->only(['title', 'seo_summary', 'category']);
+        $data = $request->safe()->only(['title', 'seo_summary']);
         $data['post_date'] = Carbon::createFromFormat('d/m/Y', $request->validated('post_date'))->toDateString();
         $data['tags'] = collect(explode(',', $request->validated('tags') ?? ''))->map(fn (string $tag) => trim($tag))->filter()->unique()->values()->all();
         $sanitizer = new HtmlSanitizer((new HtmlSanitizerConfig)->allowSafeElements()->allowRelativeMedias()->allowRelativeLinks()->allowElement('img', ['src', 'alt', 'width', 'height'])->withMaxInputLength(200000));
@@ -60,29 +59,31 @@ class PostController extends Controller
         if ($request->hasFile('image')) {
             $newImage = $images->store($request->file('image'));
             $data['image'] = $newImage;
+        } elseif ($oldImage) {
+            $images->generateVariants($oldImage);
         }
         try {
             $post->fill($data)->save();
         } catch (\Throwable $exception) {
             if ($newImage) {
-                Storage::disk('public')->delete($newImage);
+                $images->delete($newImage);
             } throw $exception;
         }
         if ($newImage && $oldImage) {
-            Storage::disk('public')->delete($oldImage);
+            $images->delete($oldImage);
         }
 
         return redirect()->route('admin.posts.edit', $post)->with('status', $post->is_published ? 'Post saved for publication.' : 'Draft saved.');
     }
 
-    public function destroy(Post $post): RedirectResponse
+    public function destroy(Post $post, BlogImages $images): RedirectResponse
     {
         $image = $post->image;
         $post->delete();
         if ($image) {
-            Storage::disk('public')->delete($image);
+            $images->delete($image);
         }
 
-        return redirect()->route('admin.posts.index')->with('status','Post deleted.');
+        return redirect()->route('admin.posts.index')->with('status', 'Post deleted.');
     }
 }

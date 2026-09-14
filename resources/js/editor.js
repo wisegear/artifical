@@ -34,22 +34,24 @@ tinymce.init({
         return result.location;
     },
     setup(editor) {
-        editor.on('init', () => status.textContent = 'TinyMCE · Images are resized automatically. Save your draft to keep changes.');
+        editor.on('init', () => status.textContent = 'TinyMCE · Images are resized automatically. Save your changes to keep them.');
     }
 }).catch(() => status.textContent = 'The editor could not load. Reload this page before editing rich text.');
-const form = document.querySelector('#post-form');
+const form = element.closest('form');
 form.addEventListener('submit', async event => {
     const editor = tinymce.get(element.id);
     if (!editor) return;
     event.preventDefault();
-    const action = event.submitter?.value || 'draft';
+    const action = event.submitter?.value || (form.id === 'post-form' ? 'draft' : null);
     const buttons = form.querySelectorAll('button[type="submit"]');
     buttons.forEach(button => button.disabled = true);
     try {
         const uploads = await editor.uploadImages();
         if (uploads.some(upload => !upload.status)) throw new Error('An image has not finished uploading. Please retry.');
         editor.save();
-        const input = document.createElement('input'); input.type = 'hidden'; input.name = 'action'; input.value = action; form.append(input);
+        if (action) {
+            const input = document.createElement('input'); input.type = 'hidden'; input.name = 'action'; input.value = action; form.append(input);
+        }
         HTMLFormElement.prototype.submit.call(form);
     } catch (error) {
         status.textContent = error.message || 'Could not save images. Please try again.';

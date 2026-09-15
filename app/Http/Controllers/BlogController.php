@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuthorProfile;
 use App\Models\Post;
+use App\Services\PostContents;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -22,11 +24,20 @@ class BlogController extends Controller
         return view('blog.index', ['posts' => $query->orderByDesc('post_date')->paginate(9)->withQueryString(), 'featured' => empty(array_filter($filters)) ? Post::published()->where('is_featured', true)->latest('post_date')->first() : null, 'popularTags' => Post::published()->pluck('tags')->flatten()->filter()->countBy()->sortDesc()->keys()->take(8)]);
     }
 
-    public function show(Request $request, Post $post): View
+    public function show(Request $request, Post $post, PostContents $contents): View
     {
         abort_unless($post->is_published && $post->post_date->lte(today()), 404);
         $locked = $post->is_subscriber && ! $request->user();
+        $postContents = $locked ? ['html' => '', 'headings' => []] : $contents->build($post->body);
 
-        return view('blog.show', compact('post', 'locked'));
+        $author = AuthorProfile::find(1);
+        $postUrl = route('posts.show', $post);
+        $shareLinks = [
+            'x' => 'https://twitter.com/intent/tweet?'.http_build_query(['text' => $post->title, 'url' => $postUrl], encoding_type: PHP_QUERY_RFC3986),
+            'facebook' => 'https://www.facebook.com/sharer/sharer.php?'.http_build_query(['u' => $postUrl], encoding_type: PHP_QUERY_RFC3986),
+            'linkedin' => 'https://www.linkedin.com/sharing/share-offsite/?'.http_build_query(['url' => $postUrl], encoding_type: PHP_QUERY_RFC3986),
+        ];
+
+        return view('blog.show', compact('post', 'locked', 'postContents', 'author', 'shareLinks'));
     }
 }

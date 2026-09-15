@@ -29,6 +29,61 @@ it('shows only published posts whose date has arrived and supports filters', fun
     $this->get(route('posts.show', $live->slug))->assertSee('13/09/2026');
 });
 
+it('shows the estimated reading time for every published story', function () {
+    $post = Post::factory()->create([
+        'body' => '<p>'.implode(' ', array_fill(0, 400, 'curiosity')).'</p>',
+        'is_featured' => true,
+        'is_published' => true,
+        'post_date' => '2026-09-15',
+    ]);
+
+    $this->get('/')->assertSeeTextInOrder([$post->title, '2 min read']);
+    $this->get(route('posts.show', $post->slug))
+        ->assertSee('2 min read')
+        ->assertSeeInOrder(['15/09/2026', 'meta-separator', '2 min read', 'meta-separator', '>#AI</a>'], false);
+});
+
+it('builds a linked table of contents from the post headings', function () {
+    $post = Post::factory()->create([
+        'body' => '<p>Introduction.</p><h2>Why <em>now</em>?</h2><p>First section.</p><h2>Why now?</h2><h3>Not included</h3>',
+        'is_published' => true,
+    ]);
+
+    $this->get(route('posts.show', $post->slug))
+        ->assertSee('IN THIS ARTICLE')
+        ->assertSee('<details>', false)
+        ->assertSee('class="contents-toggle"', false)
+        ->assertSee('href="#why-now"', false)
+        ->assertSee('href="#why-now-2"', false)
+        ->assertSee('id="why-now"', false)
+        ->assertSee('id="why-now-2"', false)
+        ->assertDontSee('href="#not-included"', false);
+});
+
+it('does not show a table of contents when the post has no second-level headings', function () {
+    $post = Post::factory()->create([
+        'body' => '<h3>A smaller heading</h3><p>Article copy.</p>',
+        'is_published' => true,
+    ]);
+
+    $this->get(route('posts.show', $post->slug))->assertDontSee('IN THIS ARTICLE');
+});
+
+it('shows share links for X Facebook and LinkedIn on each story', function () {
+    $post = Post::factory()->create([
+        'title' => 'Humans & helpful machines',
+        'is_published' => true,
+    ]);
+
+    $this->get(route('posts.show', $post->slug))
+        ->assertSee('SHARE THIS ARTICLE')
+        ->assertSee('https://twitter.com/intent/tweet?', false)
+        ->assertSee('text=Humans%20%26%20helpful%20machines', false)
+        ->assertSee('https://www.facebook.com/sharer/sharer.php?', false)
+        ->assertSee('https://www.linkedin.com/sharing/share-offsite/?', false)
+        ->assertSee('target="_blank" rel="noopener noreferrer"', false);
+});
+
 it('keeps subscriber content out of guest HTML and unlocks it for readers', function () {
     $post = Post::factory()->create(['is_published' => true, 'is_subscriber' => true, 'body' => '<p>'.str_repeat('Introduction. ', 100).'</p><p>SECRET MEMBER CONTENT</p>']);
     $this->get(route('posts.show', $post->slug))->assertSee('The rest is for our readers.')->assertDontSee('SECRET MEMBER CONTENT');

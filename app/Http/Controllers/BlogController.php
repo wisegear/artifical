@@ -42,6 +42,28 @@ class BlogController extends Controller
         $postContents = $locked ? ['html' => '', 'headings' => []] : $contents->build($post->body);
 
         $author = AuthorProfile::find(1);
+        $previousPost = Post::published()
+            ->where(function ($query) use ($post): void {
+                $query->where('post_date', '<', $post->post_date)
+                    ->orWhere(function ($query) use ($post): void {
+                        $query->whereDate('post_date', $post->post_date)
+                            ->where('id', '<', $post->id);
+                    });
+            })
+            ->orderByDesc('post_date')
+            ->orderByDesc('id')
+            ->first();
+        $nextPost = Post::published()
+            ->where(function ($query) use ($post): void {
+                $query->where('post_date', '>', $post->post_date)
+                    ->orWhere(function ($query) use ($post): void {
+                        $query->whereDate('post_date', $post->post_date)
+                            ->where('id', '>', $post->id);
+                    });
+            })
+            ->orderBy('post_date')
+            ->orderBy('id')
+            ->first();
         $postUrl = route('posts.show', $post);
         $shareLinks = [
             'x' => 'https://twitter.com/intent/tweet?'.http_build_query(['text' => $post->title, 'url' => $postUrl], encoding_type: PHP_QUERY_RFC3986),
@@ -49,6 +71,6 @@ class BlogController extends Controller
             'linkedin' => 'https://www.linkedin.com/sharing/share-offsite/?'.http_build_query(['url' => $postUrl], encoding_type: PHP_QUERY_RFC3986),
         ];
 
-        return view('blog.show', compact('post', 'locked', 'postContents', 'author', 'shareLinks', 'preview'));
+        return view('blog.show', compact('post', 'locked', 'postContents', 'author', 'previousPost', 'nextPost', 'shareLinks', 'preview'));
     }
 }

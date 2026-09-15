@@ -84,6 +84,36 @@ it('shows share links for X Facebook and LinkedIn on each story', function () {
         ->assertSee('target="_blank" rel="noopener noreferrer"', false);
 });
 
+it('links to the immediately previous and next published stories in date order', function () {
+    $previous = Post::factory()->create(['title' => 'The earlier story', 'is_published' => true, 'post_date' => '2026-09-10']);
+    $current = Post::factory()->create(['title' => 'The current story', 'is_published' => true, 'post_date' => '2026-09-12']);
+    $next = Post::factory()->create(['title' => 'The later story', 'is_published' => true, 'post_date' => '2026-09-14']);
+    Post::factory()->create(['title' => 'An older story', 'is_published' => true, 'post_date' => '2026-09-08']);
+    Post::factory()->create(['title' => 'A draft neighbour', 'post_date' => '2026-09-11']);
+    Post::factory()->create(['title' => 'A future neighbour', 'is_published' => true, 'post_date' => today()->addDay()]);
+
+    $this->get(route('posts.show', $current))
+        ->assertSee('aria-label="More stories"', false)
+        ->assertSeeInOrder(['PREVIOUS POST', 'The earlier story', 'NEXT POST', 'The later story'])
+        ->assertSee(route('posts.show', $previous), false)
+        ->assertSee(route('posts.show', $next), false)
+        ->assertDontSee('An older story')
+        ->assertDontSee('A draft neighbour')
+        ->assertDontSee('A future neighbour');
+});
+
+it('shows only the available direction at the ends of the published timeline', function () {
+    $first = Post::factory()->create(['title' => 'The first story', 'is_published' => true, 'post_date' => '2026-09-10']);
+    $last = Post::factory()->create(['title' => 'The last story', 'is_published' => true, 'post_date' => '2026-09-12']);
+
+    $this->get(route('posts.show', $first))
+        ->assertDontSee('PREVIOUS POST')
+        ->assertSeeInOrder(['NEXT POST', 'The last story']);
+    $this->get(route('posts.show', $last))
+        ->assertSeeInOrder(['PREVIOUS POST', 'The first story'])
+        ->assertDontSee('NEXT POST');
+});
+
 it('keeps subscriber content out of guest HTML and unlocks it for readers', function () {
     $post = Post::factory()->create(['is_published' => true, 'is_subscriber' => true, 'body' => '<p>'.str_repeat('Introduction. ', 100).'</p><p>SECRET MEMBER CONTENT</p>']);
     $this->get(route('posts.show', $post->slug))->assertSee('The rest is for our readers.')->assertDontSee('SECRET MEMBER CONTENT');

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['title', 'slug', 'post_date', 'seo_summary', 'tags', 'body', 'image', 'is_published', 'is_featured', 'is_subscriber'])]
 class Post extends Model
@@ -23,6 +24,11 @@ class Post extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function navigationItems(): BelongsToMany
+    {
+        return $this->belongsToMany(NavigationItem::class)->withPivot('position');
     }
 
     protected function readingTimeMinutes(): Attribute

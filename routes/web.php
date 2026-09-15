@@ -14,9 +14,7 @@ Route::get('/about', [AboutController::class, 'show'])->name('about');
 Route::get('/posts/{post:slug}', [BlogController::class, 'show'])->name('posts.show');
 Route::middleware('guest')->group(function (): void {
     Route::view('/login', 'auth.login')->name('login');
-    Route::view('/register', 'auth.register')->name('register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::middleware(['auth', 'can:admin'])->prefix('admin')->name('admin.')->group(function (): void {

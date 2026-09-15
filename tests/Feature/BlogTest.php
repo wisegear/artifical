@@ -90,14 +90,17 @@ it('keeps subscriber content out of guest HTML and unlocks it for readers', func
     $this->actingAs(User::factory()->create())->get(route('posts.show', $post->slug))->assertSee('SECRET MEMBER CONTENT')->assertDontSee('The rest is for our readers.');
 });
 
-it('does not grant admin access through registration', function () {
-    $this->post('/register', ['name' => 'Reader', 'email' => 'reader@example.com', 'password' => 'long-reader-password', 'password_confirmation' => 'long-reader-password', 'is_admin' => true])->assertRedirect('/');
-    $user = User::where('email', 'reader@example.com')->firstOrFail();
-    expect($user->is_admin)->toBeFalse();
-    $this->assertAuthenticatedAs($user);
-    $this->get('/admin/posts')->assertForbidden();
-    $this->post('/admin/posts', articleInput())->assertForbidden();
-    $this->assertDatabaseCount('posts', 0);
+it('does not expose public registration', function () {
+    $this->get('/register')->assertNotFound();
+    $this->post('/register', [
+        'name' => 'Reader',
+        'email' => 'reader@example.com',
+        'password' => 'long-reader-password',
+        'password_confirmation' => 'long-reader-password',
+        'is_admin' => true,
+    ])->assertNotFound();
+
+    $this->assertDatabaseCount('users', 0);
 });
 
 it('protects every admin endpoint from readers', function () {
@@ -197,10 +200,12 @@ it('logs readers in and out and rejects wrong passwords', function () {
     $this->assertGuest();
 });
 
-it('rejects duplicate registrations and short passwords', function () {
-    $user = User::factory()->create();
-    $this->post('/register', ['name' => 'Reader', 'email' => $user->email, 'password' => 'short', 'password_confirmation' => 'short'])->assertInvalid(['email', 'password']);
-    $this->assertDatabaseCount('users', 1);
+it('removes registration links and the homepage join panel', function () {
+    $post = Post::factory()->create(['is_published' => true, 'is_subscriber' => true]);
+
+    $this->get('/')->assertDontSee('/register')->assertDontSee('CURIOSITY LOVES COMPANY');
+    $this->get('/login')->assertDontSee('/register')->assertDontSee('Create an account');
+    $this->get(route('posts.show', $post->slug))->assertDontSee('/register')->assertSee('Log in to continue');
 });
 
 it('grants admin access only to an explicitly selected registered account', function () {

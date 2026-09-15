@@ -27,7 +27,18 @@ class BlogController extends Controller
     public function show(Request $request, Post $post, PostContents $contents): View
     {
         abort_unless($post->is_published && $post->post_date->lte(today()), 404);
-        $locked = $post->is_subscriber && ! $request->user();
+
+        return $this->renderPost($request, $post, $contents);
+    }
+
+    public function preview(Request $request, Post $post, PostContents $contents): View
+    {
+        return $this->renderPost($request, $post, $contents, preview: true);
+    }
+
+    private function renderPost(Request $request, Post $post, PostContents $contents, bool $preview = false): View
+    {
+        $locked = ! $preview && $post->is_subscriber && ! $request->user();
         $postContents = $locked ? ['html' => '', 'headings' => []] : $contents->build($post->body);
 
         $author = AuthorProfile::find(1);
@@ -38,6 +49,6 @@ class BlogController extends Controller
             'linkedin' => 'https://www.linkedin.com/sharing/share-offsite/?'.http_build_query(['url' => $postUrl], encoding_type: PHP_QUERY_RFC3986),
         ];
 
-        return view('blog.show', compact('post', 'locked', 'postContents', 'author', 'shareLinks'));
+        return view('blog.show', compact('post', 'locked', 'postContents', 'author', 'shareLinks', 'preview'));
     }
 }

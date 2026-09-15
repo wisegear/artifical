@@ -26,5 +26,6 @@ Route::middleware(['auth', 'can:admin'])->prefix('admin')->name('admin.')->group
     Route::get('/author', [AuthorProfileController::class, 'edit'])->name('author.edit');
     Route::put('/author', [AuthorProfileController::class, 'update'])->name('author.update');
     Route::resource('navigation-items', NavigationItemController::class)->except('show');
+    Route::get('/posts/{post}/preview', [BlogController::class, 'preview'])->name('posts.preview');
     Route::resource('posts', PostController::class)->except('show');
 });

@@ -109,10 +109,33 @@ it('protects every admin endpoint from readers', function () {
     $this->actingAs(User::factory()->create());
     $this->get('/admin/posts/create')->assertForbidden();
     $this->get(route('admin.posts.edit', $post))->assertForbidden();
+    $this->get(route('admin.posts.preview', $post))->assertForbidden();
     $this->put(route('admin.posts.update', $post), articleInput())->assertForbidden();
     $this->delete(route('admin.posts.destroy', $post))->assertForbidden();
     $this->post(route('admin.images.store'))->assertForbidden();
     $this->assertModelExists($post);
+});
+
+it('lets admins preview saved drafts without making them public', function () {
+    $post = Post::factory()->create([
+        'title' => 'A private work in progress',
+        'body' => '<h2>Draft section</h2><p>Unpublished thoughts.</p>',
+        'is_published' => false,
+        'is_subscriber' => true,
+    ]);
+
+    $this->get(route('admin.posts.preview', $post))->assertRedirect(route('login'));
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('admin.posts.preview', $post))
+        ->assertSuccessful()
+        ->assertSee('DRAFT PREVIEW')
+        ->assertSee('A private work in progress')
+        ->assertSee('Unpublished thoughts.')
+        ->assertDontSee('The rest is for our readers.');
+
+    $this->get(route('posts.show', $post->slug))->assertNotFound();
+    $this->get(route('admin.posts.edit', $post))->assertSee('Preview saved post');
+    $this->get(route('admin.posts.index'))->assertSee(route('admin.posts.preview', $post), false);
 });
 
 it('creates drafts, publishes, features, unpublishes and deletes posts', function () {

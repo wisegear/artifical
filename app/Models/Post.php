@@ -10,11 +10,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 #[Fillable(['title', 'slug', 'post_date', 'seo_summary', 'tags', 'body', 'image', 'is_published', 'is_featured', 'is_subscriber'])]
 class Post extends Model
 {
     use HasFactory;
+
+    public static function uniqueSlug(string $title): string
+    {
+        $baseSlug = Str::substr(Str::slug($title) ?: 'post', 0, 240);
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (static::where('slug', $slug)->orWhere('previous_slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$suffix++;
+        }
+
+        return $slug;
+    }
+
+    public function resolveRouteBinding(mixed $value, mixed $field = null): ?Model
+    {
+        $post = parent::resolveRouteBinding($value, $field);
+
+        return $post ?? ($field === 'slug' ? static::where('previous_slug', $value)->first() : null);
+    }
 
     protected function casts(): array
     {

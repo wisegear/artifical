@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuthorProfile;
 use App\Models\Post;
 use App\Services\PostContents;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -24,9 +25,13 @@ class BlogController extends Controller
         return view('blog.index', ['posts' => $query->orderByDesc('post_date')->latest()->paginate(9)->withQueryString(), 'featured' => empty(array_filter($filters)) ? Post::published()->where('is_featured', true)->latest('post_date')->latest()->first() : null, 'popularTags' => Post::published()->pluck('tags')->flatten()->filter()->countBy()->sortDesc()->keys()->take(8)]);
     }
 
-    public function show(Request $request, Post $post, PostContents $contents): View
+    public function show(Request $request, Post $post, PostContents $contents): View|RedirectResponse
     {
         abort_unless($post->is_published && $post->post_date->lte(today()), 404);
+
+        if ($request->route()->originalParameter('post') !== $post->slug) {
+            return redirect()->route('posts.show', $post, 301);
+        }
 
         return $this->renderPost($request, $post, $contents);
     }

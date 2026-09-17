@@ -8,7 +8,6 @@ use App\Models\Post;
 use App\Services\BlogImages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
@@ -34,7 +33,7 @@ class PostController extends Controller
     {
         $post = new Post;
         $post->user_id = $request->user()->id;
-        $post->slug = Str::slug($request->validated('title')).'-'.Str::lower(Str::random(8));
+        $post->slug = Post::uniqueSlug($request->validated('title'));
 
         return $this->save($request, $post, $images);
     }

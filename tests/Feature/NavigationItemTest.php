@@ -76,3 +76,42 @@ it('requires a name and at least one valid distinct post', function () {
     ])->assertInvalid(['label', 'posts.1', 'posts.2']);
     $this->assertDatabaseCount('navigation_items', 0);
 });
+
+it('keeps the chosen article order in the editor and public dropdown after saving', function () {
+    $first = Post::factory()->create(['title' => 'First lesson', 'is_published' => true]);
+    $second = Post::factory()->create(['title' => 'Second lesson', 'is_published' => true]);
+    $draft = Post::factory()->create(['title' => 'Draft lesson']);
+    $navigationItem = NavigationItem::factory()->create();
+    $navigationItem->posts()->attach([$first->id => ['position' => 0], $second->id => ['position' => 1]]);
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
+
+    $this->put(route('admin.navigation-items.update', $navigationItem), [
+        'label' => $navigationItem->label,
+        'posts' => [$second->id, $draft->id, $first->id],
+    ])->assertSessionHasNoErrors()->assertRedirect(route('admin.navigation-items.edit', $navigationItem));
+
+    expect($navigationItem->fresh()->posts->modelKeys())->toBe([$second->id, $draft->id, $first->id]);
+    $editor = $this->get(route('admin.navigation-items.edit', $navigationItem));
+    $editor->assertSeeInOrder(['value="'.$second->id.'"', 'value="'.$draft->id.'"', 'value="'.$first->id.'"'], false);
+    $editor->assertSee('Move up')->assertSee('Move down');
+    $response = $this->get('/');
+    $navigation = str($response->getContent())->between('<nav id="main-navigation"', '</nav>')->toString();
+    expect(strpos($navigation, $second->title))->toBeLessThan(strpos($navigation, $first->title));
+    expect($navigation)->not->toContain($draft->title);
+});
+
+it('preserves the submitted article order when the navigation form has validation errors', function () {
+    $first = Post::factory()->create();
+    $second = Post::factory()->create();
+    $navigationItem = NavigationItem::factory()->create();
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
+    $url = route('admin.navigation-items.edit', $navigationItem);
+
+    $this->from($url)->put(route('admin.navigation-items.update', $navigationItem), [
+        'label' => '',
+        'posts' => [$second->id, $first->id],
+    ])->assertInvalid(['label']);
+
+    $this->get($url)->assertSeeInOrder(['value="'.$second->id.'"', 'value="'.$first->id.'"'], false);
+    expect($navigationItem->fresh()->posts)->toBeEmpty();
+});

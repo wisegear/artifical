@@ -51,3 +51,47 @@ if (imageInput) {
     });
 }
 if (document.querySelector('[data-editor]')) import('./editor');
+
+
+document.querySelectorAll('[data-post-order]').forEach(list => {
+    const selectedRows = () => Array.from(list.children).filter(row => row.querySelector('input').checked);
+    const refresh = () => {
+        const selected = selectedRows();
+        Array.from(list.children).forEach(row => {
+            const index = selected.indexOf(row);
+            row.querySelector('.post-order-actions').hidden = index === -1;
+            row.querySelector('[data-move="up"]').disabled = index <= 0;
+            row.querySelector('[data-move="down"]').disabled = index === -1 || index === selected.length - 1;
+        });
+    };
+    list.addEventListener('change', event => {
+        if (!event.target.matches('input[type="checkbox"]')) return;
+        const row = event.target.closest('[data-post-option]');
+        if (event.target.checked) {
+            const last = selectedRows().filter(item => item !== row).at(-1);
+            if (last) last.after(row);
+            else list.prepend(row);
+        } else {
+            list.append(row);
+        }
+        refresh();
+    });
+    list.addEventListener('click', event => {
+        const button = event.target.closest('[data-move]');
+        if (!button) return;
+        const row = button.closest('[data-post-option]');
+        const selected = selectedRows();
+        const index = selected.indexOf(row);
+        const target = selected[index + (button.dataset.move === 'up' ? -1 : 1)];
+        if (!target) return;
+        if (button.dataset.move === 'up') target.before(row);
+        else target.after(row);
+        refresh();
+        if (button.disabled) {
+            row.querySelector(`[data-move="${button.dataset.move === 'up' ? 'down' : 'up'}"]`).focus();
+        } else {
+            button.focus();
+        }
+    });
+    refresh();
+});

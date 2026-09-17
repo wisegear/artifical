@@ -21,7 +21,7 @@ class BlogController extends Controller
             $query->whereJsonContains('tags', $tag);
         }
 
-        return view('blog.index', ['posts' => $query->orderByDesc('post_date')->paginate(9)->withQueryString(), 'featured' => empty(array_filter($filters)) ? Post::published()->where('is_featured', true)->latest('post_date')->first() : null, 'popularTags' => Post::published()->pluck('tags')->flatten()->filter()->countBy()->sortDesc()->keys()->take(8)]);
+        return view('blog.index', ['posts' => $query->orderByDesc('post_date')->latest()->paginate(9)->withQueryString(), 'featured' => empty(array_filter($filters)) ? Post::published()->where('is_featured', true)->latest('post_date')->latest()->first() : null, 'popularTags' => Post::published()->pluck('tags')->flatten()->filter()->countBy()->sortDesc()->keys()->take(8)]);
     }
 
     public function show(Request $request, Post $post, PostContents $contents): View

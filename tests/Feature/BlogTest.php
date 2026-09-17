@@ -29,6 +29,19 @@ it('shows only published posts whose date has arrived and supports filters', fun
     $this->get(route('posts.show', $live->slug))->assertSee('13/09/2026');
 });
 
+it('lists posts by publication date with newer creation times first on the same date', function () {
+    $this->travelTo(now()->setDate(2026, 9, 17));
+    Post::factory()->create(['title' => 'Newest publication', 'is_published' => true, 'post_date' => '2026-09-16', 'created_at' => '2026-09-01 09:00:00']);
+    Post::factory()->create(['title' => 'Later creation on same day', 'is_published' => true, 'post_date' => '2026-09-14', 'created_at' => '2026-09-13 10:00:00']);
+    Post::factory()->create(['title' => 'Earlier creation on same day', 'is_published' => true, 'post_date' => '2026-09-14', 'created_at' => '2026-09-13 09:00:00']);
+    Post::factory()->create(['title' => 'Oldest publication', 'is_published' => true, 'post_date' => '2026-09-10', 'created_at' => '2026-09-17 09:00:00']);
+
+    $this->get(route('home'))->assertSeeInOrder(['Newest publication', 'Later creation on same day', 'Earlier creation on same day', 'Oldest publication']);
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('admin.posts.index'))
+        ->assertSeeInOrder(['Newest publication', 'Later creation on same day', 'Earlier creation on same day', 'Oldest publication']);
+});
+
 it('shows the estimated reading time for every published story', function () {
     $post = Post::factory()->create([
         'body' => '<p>'.implode(' ', array_fill(0, 400, 'curiosity')).'</p>',
